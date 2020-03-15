@@ -1,4 +1,4 @@
-package com.company.bot.model;
+package com.company.bot.model.bot;
 
 import com.company.bot.service.BotService;
 import lombok.RequiredArgsConstructor;
@@ -7,8 +7,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
+import org.telegram.telegrambots.meta.api.methods.send.SendChatAction;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import static com.company.bot.constant.BotConstant.BOT_NAME;
@@ -16,7 +18,7 @@ import static com.company.bot.constant.BotConstant.BOT_NAME;
 @Slf4j
 @Component
 @RequiredArgsConstructor(onConstructor_ = @Autowired)
-public class TicTacToeBot extends TelegramLongPollingBot {
+public class ScheduleBot extends TelegramLongPollingBot {
 
     @Value("${bot.token}")
     private String botToken;
@@ -25,9 +27,13 @@ public class TicTacToeBot extends TelegramLongPollingBot {
 
     @Override
     public void onUpdateReceived(Update update) {
+        Long chatId = botService.getChatId(update).orElseThrow();
         String incomingMessage = botService.getIncomingMessage(update).orElseThrow();
-        SendMessage outgoingMessage = botService.createOutgoingMessage(incomingMessage, update);
-        sendMessage(outgoingMessage);
+        SendMessage outgoingMessage = botService.createOutgoingMessage(chatId, incomingMessage);
+        SendChatAction chatAction = botService.createChatAction(chatId);
+        ReplyKeyboardMarkup keyboardMarkup = botService.getKeyBoard();
+        outgoingMessage.setReplyMarkup(keyboardMarkup);
+        sendMessage(chatAction, outgoingMessage);
     }
 
     @Override
@@ -40,8 +46,9 @@ public class TicTacToeBot extends TelegramLongPollingBot {
         return botToken;
     }
 
-    private void sendMessage(SendMessage message) {
+    private void sendMessage(SendChatAction chatAction, SendMessage message) {
         try {
+            execute(chatAction);
             execute(message);
         } catch (TelegramApiException e) {
             String errorMessage = e.getMessage();
